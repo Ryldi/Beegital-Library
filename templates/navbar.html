@@ -19,9 +19,9 @@
             
             <div class="navbar-right">
                 {% if 'user' in session %}
-                <a href="/logout">Logout</a>
+                    <a href="/logout" class="navbar-to-log">Logout</a>
                 {% else %}
-                    <a href="/login">Login</a>
+                    <a href="/login" class="navbar-to-log">Login</a>
                 {% endif %}
             </div>
         </nav>

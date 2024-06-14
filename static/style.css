@@ -58,3 +58,10 @@ nav{
     color: #88AED0;
 }
 
+.navbar-to-log {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: #88AED0;
+}
+
