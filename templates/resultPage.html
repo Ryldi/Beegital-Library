@@ -1,0 +1,26 @@
+{% extends "navbar.html" %}
+
+{% block title %}Result Page{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div>
+        <form class="row g-3">
+            <input type="text" class="form-control" placeholder="input your query here"
+          </form>
+    </div>
+    <div>
+        {% for i in range(5)%}
+        <div class="card" style="margin-top:15px; margin-bottom: 15px">
+            <div class="card-body">
+              <h5 class="card-title">Article</h5>
+              <h6 class="card-subtitle mb-2 text-body-secondary">Card subtitle</h6>
+              <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p>
+              <a href="#" class="card-link">View Content</a>
+            </div>
+          </div>
+        {% endfor%}
+    </div>
+
+</div>
+{% endblock %}

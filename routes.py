@@ -21,6 +21,14 @@ def homepage():
         return render_template('homePage.html', files=fetchFiles(), user=session['user'])
     return render_template('homePage.html', files=fetchFiles())
 
+@app.route("/result")
+def result_page():
+    return render_template("resultPage.html")
+
+@app.route("/detail")
+def detail_page():
+    return render_template("detailPage.html")
+
 def fetchFiles():
     cur = mysql.connection.cursor()
     cur.execute("SELECT * FROM ms_file")
