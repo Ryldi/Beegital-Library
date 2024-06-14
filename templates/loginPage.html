@@ -3,28 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <link rel="stylesheet" href="static/loginPage.css">
+    <title>Digital Library</title>
+    <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
     
 
     <form id="loginForm" action="/login" method="POST">
-        <div class="container">
+        <div class="login-container">
             <div>
                 <h1>Login</h1>
-                <h3 class="subtitle">Already have an account?</h3>
+                <h3 class="login-subtitle">Already have an account?</h3>
             </div>
-            <div class="sub-container">
+            <div class="login-sub-container">
                 <label for="usernim">NIM: </label>
                 <input type="text" name="usernim" placeholder="2XXXXXXXXX"><br>
             </div>
-            <div class="sub-container">
+            <div class="login-sub-container">
                 <label for="password">Password: </label>
                 <input type="password" name="password" placeholder="Password"><br>
             </div>
 
-            <input class="btn-submit" type="submit" value="Login">
+            <input class="login-btn-submit" type="submit" value="Login">
         </div>
     </form>
 </body>

@@ -4,7 +4,7 @@
     padding: 10vh;
 }
 
-.container {
+.login-container {
     display: grid;
     justify-content: center;
     gap: 3vh;
@@ -17,22 +17,22 @@
     background-color: whitesmoke;
 }
 
-.form-container {
+.login-form-container {
     display: grid;
     justify-content: center;
     gap: 1.5vh;
 }
 
-.sub-container {
+.login-sub-container {
     display: grid;
     gap: 0.5vh;
 }
 
-.subtitle {
+.login-subtitle {
     color: #779ECB;
 }
 
-.btn-submit {
+.login-btn-submit {
     background-color: #88AED0;
     color: whitesmoke;
     border: none;
@@ -40,3 +40,21 @@
     border-radius: 5px;
     cursor: pointer;
 }
+
+/* Navbar */
+
+nav{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.navbar-to-home {
+    display: flex;
+    align-items: center;
+    gap: 2vh;
+    text-decoration: none;
+    color: #88AED0;
+}
+

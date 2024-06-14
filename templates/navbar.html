@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Digital Library{% endblock %}</title>
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+    <header>
+        <!-- Navigation bar -->
+        <nav>
+            <div class="navbar-left">
+                <a href="/" class="navbar-to-home">
+                    <img src="{{ url_for('static', filename='images/books-logo.png') }}" alt="Profile" style="width: 40px; height: 40px;">
+                    <h2>Beegital Library</h2>
+                </a>
+            </div>
+            
+            <div class="navbar-right">
+                {% if 'user' in session %}
+                <a href="/logout">Logout</a>
+                {% else %}
+                    <a href="/login">Login</a>
+                {% endif %}
+            </div>
+        </nav>
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <footer>
+        <p>Footer content here</p>
+    </footer>
+    <!-- Add your JavaScript links here -->
+</body>
+</html>
