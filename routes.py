@@ -63,9 +63,3 @@ def auth(nim, password):
     data = cur.fetchone()
     cur.close()
     return data
-
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("/")
