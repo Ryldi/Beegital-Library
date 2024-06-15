@@ -15,11 +15,12 @@ app.config['SESSION_TYPE'] = 'filesystem'
 mysql = MySQL(app)
 Session(app)
 
-@app.route("/")
+@app.route("/", methods=["POST", "GET"])
 def homepage():
-    if 'user' in session:
-        return render_template('homePage.html', files=fetchFiles(), user=session['user'])
-    return render_template('homePage.html', files=fetchFiles())
+    if(request.method == "POST"):
+        return make_response(redirect("/result"))
+    else:
+        return render_template('homePage.html', files=fetchFiles())
 
 @app.route("/result")
 def result_page():
