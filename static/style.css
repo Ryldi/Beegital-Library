@@ -48,6 +48,8 @@ nav{
     justify-content: space-between;
     align-items: center;
     font-family: Arial, Helvetica, sans-serif;
+    padding: 3vh;
+    padding-bottom: 5vh;
 }
 
 .navbar-to-home {
@@ -62,6 +64,53 @@ nav{
     display: flex;
     align-items: center;
     text-decoration: none;
-    color: #88AED0;
+    color: white;
+    padding: 1vh;
 }
 
+.navbar-btn-login {
+    background-color: #779ECB;
+    border-radius: 5vh;
+}
+
+
+
+.home-container{
+    font-family: Arial, Helvetica, sans-serif;
+    display: grid;
+    justify-content: center;
+    align-items: center;
+    padding: 10vh;
+    color: #88AED0;
+    gap: 5vh;
+}
+.home-cont-1 {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2vh;
+    text-decoration: none;
+    color: #88AED0;
+}
+.home-cont-2{
+    display: grid;
+    padding: 0vh;
+}
+.home-cont-3{
+    display: flex;
+    gap: 1vh;
+    font-size: x-large;
+}
+.beegital-text{
+    font-weight: bolder;
+}
+.tag-text{
+    color: black;
+}
+.rowg-3{
+    width: 100vh;
+}
+.home-article-container{
+    display: flex;
+    padding: 10vh;
+}
