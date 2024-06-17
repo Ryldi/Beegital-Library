@@ -74,12 +74,13 @@ nav{
 }
 
 
-
-.home-container{
+.home{
     font-family: Arial, Helvetica, sans-serif;
     display: grid;
     justify-content: center;
     align-items: center;
+}
+.home-container{
     padding: 10vh;
     color: #88AED0;
     gap: 5vh;
@@ -107,10 +108,20 @@ nav{
 .tag-text{
     color: black;
 }
-.row-g-3{
-    width: 100vh;
+.home-search-container{
+    padding-left: 20%;
+    padding-right: 20%;
 }
 .home-article-container{
     display: flex;
     padding: 10vh;
+}
+
+.result-container{
+    display: grid;
+    justify-content: center;
+    align-items: center;
+    padding-left: 5vh;
+    padding-right: 5vh;
+    gap: 5vh;
 }
