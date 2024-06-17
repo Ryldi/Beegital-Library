@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, make_response, redirect, session
+from flask import Flask, request, render_template, make_response, redirect, session, url_for
 from flask_mysqldb import MySQL
 from flask_session import Session
 
@@ -18,13 +18,43 @@ Session(app)
 @app.route("/", methods=["POST", "GET"])
 def homepage():
     if(request.method == "POST"):
-        return make_response(redirect("/result"))
+        data = request.form.get('search')
+        return make_response(redirect(url_for('result_page', search=data)))
     else:
         return render_template('homePage.html', files=fetchFiles())
 
-@app.route("/result")
+@app.route("/result", methods=["POST", "GET"])
 def result_page():
-    return render_template("resultPage.html")
+    search = request.args.get('search')
+    if request.method == "POST":
+        search = request.form.get('search')
+
+    if search == None:
+        if 'user' in session:
+            return render_template('resultPage.html', files=fetchFiles(), user=session['user'])
+        else:
+            return render_template('resultPage.html', files=fetchFiles(), search=search)
+    else:
+        if 'user' in session:
+            return render_template('resultPage.html', files=filter(search), user=session['user'], search=search)
+        else:
+            return render_template('resultPage.html', files=filter(search), search=search)
+
+def filter(query):
+    cur = mysql.connection.cursor()
+    cur.execute(f"SELECT * FROM ms_file WHERE file_name LIKE '%{query}%'")
+    files = cur.fetchall()
+
+    modified_files = [] #cleaning file_name with _
+    for file in files:
+        file_id = file[0]  
+        original_filename = file[1] 
+        modified_filename = original_filename.replace('_', ' ')
+        modified_files.append((file_id, modified_filename))
+
+    cur.close()
+    
+    return modified_files
 
 @app.route("/detail")
 def detail_page():
@@ -34,8 +64,16 @@ def fetchFiles():
     cur = mysql.connection.cursor()
     cur.execute("SELECT * FROM ms_file")
     files = cur.fetchall()
+
+    modified_files = [] #cleaning file_name with _
+    for file in files:
+        file_id = file[0]  
+        original_filename = file[1] 
+        modified_filename = original_filename.replace('_', ' ')
+        modified_files.append((file_id, modified_filename))
+
     cur.close()
-    return files
+    return modified_files
 
 def authed(user):
     response = make_response(redirect("/"))
@@ -64,3 +102,9 @@ def auth(nim, password):
     data = cur.fetchone()
     cur.close()
     return data
+
+@app.route("/logout")
+def logout():
+    response = make_response(redirect("/"))
+    session.pop('user', None)
+    return response
