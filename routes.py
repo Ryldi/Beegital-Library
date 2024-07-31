@@ -1,6 +1,8 @@
 from flask import Flask, request, render_template, make_response, redirect, session, url_for
 from flask_mysqldb import MySQL
 from flask_session import Session
+from irs import bm25_plus, sentence_embd
+import numpy as np
 
 app = Flask(__name__)
 
@@ -108,3 +110,62 @@ def logout():
     response = make_response(redirect("/"))
     session.pop('user', None)
     return response
+
+# routenya bisa dirubah biar enak
+@app.route("/irs")
+def irs():
+    # diedit nanti biar si query ini dapatnya dari input
+    query = "Inventory management (IM) encounters significant challenges in dealing with uncer-tainty and stochastic demand"
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT file_id, file_content FROM ms_file")
+    data = cur.fetchall()
+    # ini yang combine datanya
+    docs = calcTotal(query, data)
+    # debug check
+    print(docs)
+    cur.close()
+    # ini nanti dirubah buat return pagenya
+    return None
+
+# using bm25
+def calcbm25(query,data, returnVal = False):
+    corpus = [doc[1].lower().split(" ") for doc in data]
+    bm25Score = [bm25_plus(query.lower().split(" "),row[1].lower().split(" "),corpus) for row in data]
+    if returnVal:
+        docs = sorted([(data[i][0],bm25Score[i]) for i in range(len(data))], key = lambda x: x[1], reverse=True)
+        return docs
+    else:
+        return bm25Score
+    
+def formatVec(st):
+    st = st.replace("[","").replace("]","")
+    st = st.split("\n ")
+    st = " ".join(st)
+    array = np.array(np.fromstring(st, sep=' '),dtype=float)
+    array = array.reshape(1,-1)
+    return array
+
+# using sentence embedding
+def calcSentenceEmb(query, data, returnVal = False):
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT file_content_vector FROM ms_file")
+    vecs = cur.fetchall()
+    datas = []
+    for vec in vecs:
+        datas.append(formatVec(vec[0]))
+    datas = np.vstack(datas)
+    sim_score = sentence_embd(query, datas)
+    if returnVal:
+        docs = sorted([(data[i][0],sim_score[i]) for i in range(len(data))], key = lambda x: x[1], reverse=True)
+        print(docs)
+        return docs
+    else:
+        return sim_score
+    
+# total calculation
+def calcTotal(query, data):
+    bm25_score = calcbm25(query,data)
+    sentence_embd_score = calcSentenceEmb(query, data)
+    scores = [bm25_score[i] * sentence_embd_score[i] for i in range(len(bm25_score))]
+    docs = sorted([(data[i][0],scores[i]) for i in range(len(data))], key = lambda x: x[1], reverse=True)
+    return docs
