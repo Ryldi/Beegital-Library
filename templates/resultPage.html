@@ -10,26 +10,31 @@
         </form>
     </div>
     <div>
+        {% if user != null and user[4] == 'Admin' %}
+        <div class="home-add-article-container">
+            <a href="/addArticle" role="button" class="btn btn-primary">Add Article</a>
+        </div>
+        {% endif %}
+
         {% for file in files %}
         <div class="card" style="margin-top:15px; margin-bottom: 15px">
             <div class="card-body">
                 <h5 class="card-title">{{ file[1] }}</h5>
-                <h6 class="card-subtitle mb-2 text-body-secondary">Card subtitle</h6>
-                <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p>  
-                <a href="#" class="card-link">Detail</a>
-                {% if user != null  %}
-                    <a href="#" class="card-link">Download</a>
+                <p class="card-text">{{ file[2] }}</p>
+                <a href="{{ url_for('detail', file_id=file[0]) }}" class="card-link">Detail</a>
+                {% if user != null %}
+                <a href="{{ url_for('download', file_id=file[0]) }}" class="card-link">Download</a>
                 {% endif %}
             </div>
-          </div>
+        </div>
         {% endfor%}
 
-        {% if files|length == 0  %}
+        {% if files|length == 0 %}
         <div class="card" style="margin-top:15px; margin-bottom: 15px">
             <div class="card-body">
                 <h5 class="card-title">File not found</h5>
             </div>
-          </div>
+        </div>
         {% endif %}
 
     </div>
