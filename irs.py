@@ -39,4 +39,5 @@ def sentence_embd(query, vects):
 # corpus = [["This", "is", "another", "document"], ["This", "is", "a", "test", "document"]]
 
 # score = bm25_plus(query, document, corpus)
+
 # print(score)
