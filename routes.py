@@ -1,6 +1,11 @@
-from flask import Flask, request, render_template, make_response, redirect, session, url_for
+from flask import Flask, request, render_template, make_response, redirect, session, url_for, flash, send_file, abort
 from flask_mysqldb import MySQL
 from flask_session import Session
+import numpy as np
+import ast
+import io
+from pdf_scraping import PDF_scraper
+from text_embedding import text_embed_string as embed
 
 app = Flask(__name__)
 
@@ -45,20 +50,36 @@ def filter(query):
     cur.execute(f"SELECT * FROM ms_file WHERE file_name LIKE '%{query}%'")
     files = cur.fetchall()
 
-    modified_files = [] #cleaning file_name with _
+    modified_files = [] #cleaning file_name with _ and extract abstract
     for file in files:
         file_id = file[0]  
         original_filename = file[1] 
         modified_filename = original_filename.replace('_', ' ')
-        modified_files.append((file_id, modified_filename))
+        short_abstract = extract_short_abstract(file[2])
+        modified_files.append((file_id, modified_filename, short_abstract))
 
     cur.close()
-    
+
     return modified_files
 
-@app.route("/detail")
-def detail_page():
-    return render_template("detailPage.html")
+def extract_short_abstract(file_content):
+    start_index = file_content.find("Abstract")
+    print(start_index)
+    if start_index >= 0:
+        substring = file_content[start_index:start_index+300].strip() + "..."
+        return substring
+    else:
+        print("Abstract word not found.")  
+        return ""
+
+@app.route("/detail/<int:file_id>")
+def detail(file_id):
+    cur = mysql.connection.cursor()
+    cur.execute(f"SELECT * FROM ms_file WHERE file_id = {file_id}")
+    file = cur.fetchone()
+    cur.close()
+
+    return render_template('detailPage.html', file=file)
 
 def fetchFiles():
     cur = mysql.connection.cursor()
@@ -70,7 +91,8 @@ def fetchFiles():
         file_id = file[0]  
         original_filename = file[1] 
         modified_filename = original_filename.replace('_', ' ')
-        modified_files.append((file_id, modified_filename))
+        short_abstract = extract_short_abstract(file[2])
+        modified_files.append((file_id, modified_filename, short_abstract))
 
     cur.close()
     return modified_files
@@ -108,3 +130,118 @@ def logout():
     response = make_response(redirect("/"))
     session.pop('user', None)
     return response
+
+# routenya bisa dirubah biar enak
+@app.route("/irs")
+def irs():
+    # diedit nanti biar si query ini dapatnya dari input
+    query = "Inventory management (IM) encounters significant challenges in dealing with uncer-tainty and stochastic demand"
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT file_id, file_content FROM ms_file")
+    data = cur.fetchall()
+    # ini yang combine datanya
+    docs = calcTotal(query, data)
+    # debug check
+    print(docs)
+    cur.close()
+    # ini nanti dirubah buat return pagenya
+    return None
+
+# using bm25
+def calcbm25(query,data, returnVal = False):
+    corpus = [doc[1].lower().split(" ") for doc in data]
+    bm25Score = [bm25_plus(query.lower().split(" "),row[1].lower().split(" "),corpus) for row in data]
+    if returnVal:
+        docs = sorted([(data[i][0],bm25Score[i]) for i in range(len(data))], key = lambda x: x[1], reverse=True)
+        return docs
+    else:
+        return bm25Score
+
+def formatVec(st):
+    st = st.replace("[","").replace("]","")
+    st = st.split("\n ")
+    st = " ".join(st)
+    array = np.array(np.fromstring(st, sep=' '),dtype=float)
+    array = array.reshape(1,-1)
+    return array
+
+# using sentence embedding
+def calcSentenceEmb(query, data, returnVal = False):
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT file_content_vector FROM ms_file")
+    vecs = cur.fetchall()
+    datas = []
+    for vec in vecs:
+        datas.append(formatVec(vec[0]))
+    datas = np.vstack(datas)
+    sim_score = sentence_embd(query, datas)
+    if returnVal:
+        docs = sorted([(data[i][0],sim_score[i]) for i in range(len(data))], key = lambda x: x[1], reverse=True)
+        print(docs)
+        return docs
+    else:
+        return sim_score
+
+# total calculation
+def calcTotal(query, data):
+    bm25_score = calcbm25(query,data)
+    sentence_embd_score = calcSentenceEmb(query, data)
+    scores = [bm25_score[i] * sentence_embd_score[i] for i in range(len(bm25_score))]
+    docs = sorted([(data[i][0],scores[i]) for i in range(len(data))], key = lambda x: x[1], reverse=True)
+    return docs
+
+@app.route("/addArticle", methods=["POST", "GET"])
+def addArticle():
+    if(request.method == "POST"):
+        title = request.form.get("articleTitleInput")
+        fileI = request.files.get('articleFileInput').read()    
+        return ValidateArticleInput(title, fileI)
+
+    elif(request.method == "GET"):
+        return render_template('addArticlePage.html')
+
+
+def ValidateArticleInput(title, fileI):
+    if not title or not fileI:
+        flash('Both fields are required!', 'danger')
+        return render_template('addArticlePage.html')
+    else:
+        file_info = processArticle(title, fileI)
+        insertArticle(file_info)
+        flash('Article successfully added!', 'success')
+        return render_template('addArticlePage.html')
+
+def processArticle(title, fileI):
+    file_name = title.replace(" ", "_")
+    file_data = fileI
+    file_content = PDF_scraper.text_scraper(fileI).replace("\n", "")
+    file_content_vector = embed([str(file_content)])
+
+    return (file_name, file_data, file_content, file_content_vector)
+
+def insertArticle(file_info):
+    cur = mysql.connection.cursor()
+    cur.execute(
+        "INSERT INTO ms_file (file_name, file_data, file_content, file_content_vector) VALUES (%s, %s, %s, %s)", 
+        (file_info[0], file_info[1], file_info[2], file_info[3])
+    )
+    mysql.connection.commit()
+    cur.close()
+    return None
+
+@app.route('/download/<int:file_id>')
+def download(file_id):
+    # Fetch the file data from the database using the file_id
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT file_name, file_data FROM ms_file WHERE file_id = %s", (file_id,))
+    result = cur.fetchone()
+    cur.close()
+
+    if result:
+        file_name, file_data = result
+        if not file_name.endswith('.pdf'):
+            file_name += '.pdf'
+        return send_file(io.BytesIO(file_data), as_attachment=True, download_name=file_name, mimetype='application/pdf')
+    else:
+        abort(404)  # File not found
+
