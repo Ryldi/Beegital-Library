@@ -8,7 +8,6 @@ import io
 from pdf_scraping import PDF_scraper
 from text_embedding import text_embed_string as embed
 import time
-from irs import bm25_plus, sentence_embd
 
 app = Flask(__name__)
 
@@ -180,22 +179,6 @@ def logout():
     response = make_response(redirect("/"))
     session.pop('user', None)
     return response
-
-# routenya bisa dirubah biar enak
-@app.route("/irs")
-def irs():
-    # diedit nanti biar si query ini dapatnya dari input
-    query = "personal protective equipment"
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT file_id, file_content FROM ms_file")
-    data = cur.fetchall()
-    # ini yang combine datanya
-    docs = calcTotal(query, data)
-    # debug check
-    print(docs)
-    cur.close()
-    # ini nanti dirubah buat return pagenya
-    return None
 
 # using bm25
 def calcbm25(query,data, returnVal = False):
