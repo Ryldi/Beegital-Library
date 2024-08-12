@@ -1,6 +1,7 @@
 from flask import Flask, request, render_template, make_response, redirect, session, url_for, flash, send_file, abort
 from flask_mysqldb import MySQL
 from flask_session import Session
+from irs import bm25_plus, sentence_embd
 import numpy as np
 import ast
 import io
@@ -30,7 +31,7 @@ def homepage():
     else:
         return render_template('homePage.html', files=fetchFiles())
 
-@app.route("/result", methods=["POST", "GET"])
+@app.route("/result/sql", methods=["POST", "GET"])
 def result_page():
     search = request.args.get('search')
     if request.method == "POST":
@@ -48,6 +49,43 @@ def result_page():
         else:
             return render_template('resultPage.html', files=modified_files, search=search, message=message)
 
+@app.route("/result/irs", methods=["POST", "GET"])
+def irs():
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT file_id, file_content FROM ms_file")
+    data = cur.fetchall()
+    cur.close()
+    
+    search = request.args.get('search')
+    if request.method == "POST":
+        search = request.form.get('search')
+    
+    docs = calcTotal(search, data)
+    print(docs)
+    ranked_files = []
+    for doc_id, score in docs:
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM ms_file WHERE file_id = %s", (doc_id,))
+        file = cur.fetchone()
+        cur.close()
+        if file:
+            file_id = file[0]
+            original_filename = file[1]
+            modified_filename = original_filename.replace('_', ' ')
+            short_abstract = extract_short_abstract(file[2])
+            ranked_files.append((file_id, modified_filename, short_abstract)) 
+    
+    if search is None:
+        if 'user' in session:
+            return render_template('resultPage.html', files=fetchFiles(), user=session['user'])
+        else:
+            return render_template('resultPage.html', files=fetchFiles(), search=search)
+    else:
+        if 'user' in session:
+            return render_template('resultPage.html', files=ranked_files, user=session['user'], search=search)
+        else:
+            return render_template('resultPage.html', files=ranked_files, search=search)
+        
 def filter(query):
     start_time = time.time()
     
@@ -257,3 +295,5 @@ def download(file_id):
     else:
         abort(404)  # File not found
 
+if __name__ == "__main__":
+    app.run(debug=True)
