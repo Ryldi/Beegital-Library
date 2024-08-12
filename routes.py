@@ -46,10 +46,13 @@ def result_page():
             modified_files, message = filter(search)
             return render_template('resultPage.html', files=modified_files, user=session['user'], search=search, message=message)
         else:
+            modified_files, message = filter(search)
             return render_template('resultPage.html', files=modified_files, search=search, message=message)
 
 @app.route("/result/irs", methods=["POST", "GET"])
 def irs():
+    start_time = time.time()
+
     cur = mysql.connection.cursor()
     cur.execute("SELECT file_id, file_content FROM ms_file")
     data = cur.fetchall()
@@ -73,6 +76,13 @@ def irs():
             modified_filename = original_filename.replace('_', ' ')
             short_abstract = extract_short_abstract(file[2])
             ranked_files.append((file_id, modified_filename, short_abstract)) 
+
+    end_time = time.time()
+    time_taken = end_time - start_time
+
+    file_message = "Found {:d} files".format(len(ranked_files))
+    time_message = "in {:.4f} seconds using irs".format(time_taken)
+    message = file_message + " " + time_message
     
     if search is None:
         if 'user' in session:
@@ -81,9 +91,9 @@ def irs():
             return render_template('resultPage.html', files=fetchFiles(), search=search)
     else:
         if 'user' in session:
-            return render_template('resultPage.html', files=ranked_files, user=session['user'], search=search)
+            return render_template('resultPage.html', files=ranked_files, user=session['user'], search=search, message=message)
         else:
-            return render_template('resultPage.html', files=ranked_files, search=search)
+            return render_template('resultPage.html', files=ranked_files, search=search, message=message)
         
 def filter(query):
     start_time = time.time()

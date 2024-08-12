@@ -13,3 +13,27 @@ $(document).ready(function() {
         window.location.href = '/';
     });
 });
+
+function redirectIRS() {
+    // Get the current search query from the URL
+    const searchParams = new URLSearchParams(window.location.search);
+    const searchQuery = searchParams.get('search');
+
+    // Construct the new URL
+    const newUrl = `http://127.0.0.1:5000/result/irs?search=${encodeURIComponent(searchQuery)}`;
+
+    // Redirect to the new URL
+    window.location.href = newUrl;
+}
+
+function redirectSQL() {
+    // Get the current search query from the URL
+    const searchParams = new URLSearchParams(window.location.search);
+    const searchQuery = searchParams.get('search');
+
+    // Construct the new URL
+    const newUrl = `http://127.0.0.1:5000/result/sql?search=${encodeURIComponent(searchQuery)}`;
+
+    // Redirect to the new URL
+    window.location.href = newUrl;
+}

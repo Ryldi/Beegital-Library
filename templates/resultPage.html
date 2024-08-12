@@ -4,7 +4,11 @@
 
 {% block content %}
 <div class="result-container">
-    <div>
+    <div class="g-3">
+        <div class="mb-3">
+            <button type="button" class="btn btn-primary me-2" onclick="redirectSQL()">Query</button>
+            <button type="button" class="btn btn-primary" onclick="redirectIRS()">BM25</button>
+        </div>
         <form class="row g-3">
             <input name="search" type="text" class="form-control" placeholder="Search..." value="{{ search }}">
         </form>
