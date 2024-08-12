@@ -8,6 +8,7 @@
         <form class="row g-3">
             <input name="search" type="text" class="form-control" placeholder="Search..." value="{{ search }}">
         </form>
+        <div class="text-muted fs-6 p-10">{{ message }}</div>
     </div>
     <div>
         {% if user != null and user[4] == 'Admin' %}

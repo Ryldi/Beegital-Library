@@ -6,6 +6,8 @@ import ast
 import io
 from pdf_scraping import PDF_scraper
 from text_embedding import text_embed_string as embed
+import time
+from irs import bm25_plus, sentence_embd
 
 app = Flask(__name__)
 
@@ -41,13 +43,16 @@ def result_page():
             return render_template('resultPage.html', files=fetchFiles(), search=search)
     else:
         if 'user' in session:
-            return render_template('resultPage.html', files=filter(search), user=session['user'], search=search)
+            modified_files, message = filter(search)
+            return render_template('resultPage.html', files=modified_files, user=session['user'], search=search, message=message)
         else:
-            return render_template('resultPage.html', files=filter(search), search=search)
+            return render_template('resultPage.html', files=modified_files, search=search, message=message)
 
 def filter(query):
+    start_time = time.time()
+    
     cur = mysql.connection.cursor()
-    cur.execute(f"SELECT * FROM ms_file WHERE file_name LIKE '%{query}%'")
+    cur.execute(f"SELECT * FROM ms_file WHERE file_content LIKE '%{query}%'") #ubah file_name jadi file_content
     files = cur.fetchall()
 
     modified_files = [] #cleaning file_name with _ and extract abstract
@@ -60,11 +65,18 @@ def filter(query):
 
     cur.close()
 
-    return modified_files
+    end_time = time.time()
+    time_taken = end_time - start_time
+
+    file_message = "Found {:d} files".format(len(modified_files))
+    time_message = "in {:.4f} seconds using query".format(time_taken)
+    message = file_message + " " + time_message
+
+    return modified_files, message
 
 def extract_short_abstract(file_content):
-    start_index = file_content.find("Abstract")
-    print(start_index)
+    start_index = file_content.lower().find("abstract")
+
     if start_index >= 0:
         substring = file_content[start_index:start_index+300].strip() + "..."
         return substring
@@ -135,7 +147,7 @@ def logout():
 @app.route("/irs")
 def irs():
     # diedit nanti biar si query ini dapatnya dari input
-    query = "Inventory management (IM) encounters significant challenges in dealing with uncer-tainty and stochastic demand"
+    query = "personal protective equipment"
     cur = mysql.connection.cursor()
     cur.execute("SELECT file_id, file_content FROM ms_file")
     data = cur.fetchall()
