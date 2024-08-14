@@ -14,3 +14,5 @@ flask_session/
 
 # Ignore system files
 .DS_Store
+
+search_log.json

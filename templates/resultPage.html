@@ -26,9 +26,9 @@
             <div class="card-body">
                 <h5 class="card-title">{{ file[1] }}</h5>
                 <p class="card-text">{{ file[2] }}</p>
-                <a href="{{ url_for('detail', file_id=file[0]) }}" class="card-link">Detail</a>
+                <a href="{{ url_for('detail', file_id=file[0], search_key=search_key) }}" class="card-link">Detail</a>
                 {% if user != null %}
-                <a href="{{ url_for('download', file_id=file[0]) }}" class="card-link">Download</a>
+                <a href="{{ url_for('download', file_id=file[0], search_key=search_key) }}" class="card-link">Download</a>
                 {% endif %}
             </div>
         </div>

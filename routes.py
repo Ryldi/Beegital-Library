@@ -8,6 +8,8 @@ import io
 from pdf_scraping import PDF_scraper
 from text_embedding import text_embed_string as embed
 import time
+import json
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -21,6 +23,7 @@ app.config['SESSION_TYPE'] = 'filesystem'
 
 mysql = MySQL(app)
 Session(app)
+search_log = {}
 
 @app.route("/", methods=["POST", "GET"])
 def homepage():
@@ -30,24 +33,47 @@ def homepage():
     else:
         return render_template('homePage.html', files=fetchFiles())
 
+def log_search(query, search_method, files, user_id):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    search_key = f"{user_id}_{timestamp}"
+
+    search_log[search_key] = {
+        "UserId": user_id,
+        "Query": query,
+        "SearchMethod": search_method,
+        "Documents": {f"Document_{index+1}": {"name": file[1], "status": "Irrelevant"} for index, file in enumerate(files)}
+    }
+
+    return search_key
+
+def update_document_status(search_key, doc_name):
+    for key, value in search_log[search_key]["Documents"].items():
+        doc_name = doc_name.replace("_", " ")
+        value["name"] = value["name"].replace("_", " ")
+        print("2")
+        print(value["name"])
+        print(doc_name)
+        if value["name"] == doc_name:
+            print("3")
+            search_log[search_key]["Documents"][key]["status"] = "Relevant"
+            break
+
 @app.route("/result/sql", methods=["POST", "GET"])
 def result_page():
     search = request.args.get('search')
     if request.method == "POST":
         search = request.form.get('search')
 
-    if search == None:
-        if 'user' in session:
-            return render_template('resultPage.html', files=fetchFiles(), user=session['user'])
-        else:
-            return render_template('resultPage.html', files=fetchFiles(), search=search)
+    user_id = session['user'][0] if 'user' in session else 'Anonymous'
+    files, message = filter(search)
+    
+    # Log the search
+    search_key = log_search(search, "SQL", files, user_id)
+
+    if 'user' in session:
+        return render_template('resultPage.html', files=files, user=session['user'], search=search, message=message, search_key=search_key)
     else:
-        if 'user' in session:
-            modified_files, message = filter(search)
-            return render_template('resultPage.html', files=modified_files, user=session['user'], search=search, message=message)
-        else:
-            modified_files, message = filter(search)
-            return render_template('resultPage.html', files=modified_files, search=search, message=message)
+        return render_template('resultPage.html', files=files, search=search, message=message, search_key=search_key)
 
 @app.route("/result/irs", methods=["POST", "GET"])
 def irs():
@@ -57,13 +83,13 @@ def irs():
     cur.execute("SELECT file_id, file_content FROM ms_file")
     data = cur.fetchall()
     cur.close()
-    
+
     search = request.args.get('search')
     if request.method == "POST":
         search = request.form.get('search')
-    
+
     docs = calcTotal(search, data)
-    print(docs)
+    
     ranked_files = []
     for doc_id, score in docs:
         cur = mysql.connection.cursor()
@@ -84,16 +110,15 @@ def irs():
     time_message = "in {:.4f} seconds using irs".format(time_taken)
     message = file_message + " " + time_message
     
-    if search is None:
-        if 'user' in session:
-            return render_template('resultPage.html', files=fetchFiles(), user=session['user'])
-        else:
-            return render_template('resultPage.html', files=fetchFiles(), search=search)
+    user_id = session['user'][0] if 'user' in session else 'Anonymous'
+    
+    # Log the search
+    search_key = log_search(search, "IRS", ranked_files, user_id)
+
+    if 'user' in session:
+        return render_template('resultPage.html', files=ranked_files, user=session['user'], search=search, message=message, search_key=search_key)
     else:
-        if 'user' in session:
-            return render_template('resultPage.html', files=ranked_files, user=session['user'], search=search, message=message)
-        else:
-            return render_template('resultPage.html', files=ranked_files, search=search, message=message)
+        return render_template('resultPage.html', files=ranked_files, search=search, message=message, search_key=search_key)
         
 def filter(query):
     start_time = time.time()
@@ -134,10 +159,16 @@ def extract_short_abstract(file_content):
 @app.route("/detail/<int:file_id>")
 def detail(file_id):
     cur = mysql.connection.cursor()
-    cur.execute(f"SELECT * FROM ms_file WHERE file_id = {file_id}")
+    cur.execute("SELECT * FROM ms_file WHERE file_id = %s", (file_id,))
     file = cur.fetchone()
     cur.close()
 
+    # Update document relevance in search log
+    search_key = request.args.get('search_key')
+    if search_key and search_key in search_log:
+        file_name = file[1].replace('_', ' ')
+        update_document_status(search_key, file[1])
+    
     return render_template('detailPage.html', file=file)
 
 def fetchFiles():
@@ -274,7 +305,6 @@ def insertArticle(file_info):
 
 @app.route('/download/<int:file_id>')
 def download(file_id):
-    # Fetch the file data from the database using the file_id
     cur = mysql.connection.cursor()
     cur.execute("SELECT file_name, file_data FROM ms_file WHERE file_id = %s", (file_id,))
     result = cur.fetchone()
@@ -282,11 +312,24 @@ def download(file_id):
 
     if result:
         file_name, file_data = result
+
+        # Update document relevance in search log
+        search_key = request.args.get('search_key')
+        if search_key and search_key in search_log:
+            update_document_status(search_key, file_name)
+
         if not file_name.endswith('.pdf'):
             file_name += '.pdf'
+            
         return send_file(io.BytesIO(file_data), as_attachment=True, download_name=file_name, mimetype='application/pdf')
     else:
-        abort(404)  # File not found
+        abort(404)
+
+@app.route("/save_log", methods=["GET"])
+def save_log():
+    with open('search_log.json', 'w') as f:
+        json.dump(search_log, f)
+    return "<p>Log saved successfully</p>"
 
 if __name__ == "__main__":
     app.run(debug=True)
