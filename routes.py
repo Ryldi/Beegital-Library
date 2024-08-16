@@ -180,9 +180,9 @@ def filter(query):
 def extract_short_abstract(file_content):
     start_index = file_content.lower().find("abstract") + 8
 
-    # Skip over any "-", "—", or " " characters after "abstract"
-    while file_content[start_index] in "-— ":
-        start_index += 1    
+    # Skip over any unwanted characters after "abstract"
+    while file_content[start_index] in "-— :#$@!%^&*()[]{};:,./<>?\\|`~=":
+        start_index += 1 
 
     if start_index >= 0:
         substring = file_content[start_index:start_index+300].strip() + "..."
@@ -192,16 +192,33 @@ def extract_short_abstract(file_content):
         return ""
 
 def extract_abstract(file_content):
-    start_index = file_content.lower().find("abstract") + 8
+    file_content_lower = file_content.lower()
+    
+    start_index = file_content_lower.find("abstract") + 8
 
-    # Skip over any "-", "—", or " " characters after "abstract"
-    while file_content[start_index] in "-— ":
+    # Skip over any unwanted characters after "abstract"
+    while file_content[start_index] in "-— :#$@!%^&*()[]{};:,./<>?\\|`~=":
         start_index += 1  
 
-    end_index = file_content.lower().find("keywords") if file_content.lower().find("keywords") > 0 else file_content.lower().find("index terms")
+    keywords_index = file_content_lower.find("keywords", start_index)
+    index_terms_index = file_content_lower.find("index terms", start_index)
+    introduction_index = file_content_lower.find("introduction", start_index)
 
-    end_index = start_index+400 if end_index == -1 else end_index
+    # Determine the end_index
+    possible_end_index = [i for i in [keywords_index, index_terms_index, introduction_index] if i != -1]
     
+    if possible_end_index:
+        end_index = min(possible_end_index)
+    else:
+        end_index = start_index + 400  # Default to 400 characters if no markers are found
+
+    while file_content[end_index] in "-— :":
+        start_index += 1  
+
+    # Adjust end_index to handle unwanted trailing characters
+    while end_index > start_index and file_content[end_index - 1] in "-— :#$@!%^&*()[]{};:,./<>?\\|`~=":
+        end_index -= 1
+
     end_index = end_index-2 if file_content[end_index-1] == "—" or file_content[end_index-1] == "-" or file_content[end_index-1] == " " else end_index
 
     if start_index >= 0 and end_index >= 0:
@@ -339,36 +356,37 @@ def calcTotal(query, data):
 def addArticle():
     if(request.method == "POST"):
         title = request.form.get("articleTitleInput")
-        fileI = request.files.get('articleFileInput').read()    
-        return ValidateArticleInput(title, fileI)
+        fileI = request.files.get('articleFileInput').read()
+        year = request.form.get("articleYearInput") 
+        return ValidateArticleInput(title, fileI, year)
 
     elif(request.method == "GET"):
         return render_template('addArticlePage.html')
 
 
-def ValidateArticleInput(title, fileI):
-    if not title or not fileI:
+def ValidateArticleInput(title, fileI, year):
+    if not title or not fileI or not year:
         flash('Both fields are required!', 'danger')
         return render_template('addArticlePage.html')
     else:
-        file_info = processArticle(title, fileI)
+        file_info = processArticle(title, fileI, year)
         insertArticle(file_info)
         flash('Article successfully added!', 'success')
         return render_template('addArticlePage.html')
 
-def processArticle(title, fileI):
+def processArticle(title, fileI, year):
     file_name = title.replace(" ", "_")
     file_data = fileI
     file_content = PDF_scraper.text_scraper(fileI).replace("\n", "")
     file_content_vector = embed([str(file_content)])
 
-    return (file_name, file_data, file_content, file_content_vector)
+    return (file_name, file_data, file_content, file_content_vector, year)
 
 def insertArticle(file_info):
     cur = mysql.connection.cursor()
     cur.execute(
-        "INSERT INTO ms_file (file_name, file_data, file_content, file_content_vector) VALUES (%s, %s, %s, %s)", 
-        (file_info[0], file_info[1], file_info[2], file_info[3])
+        "INSERT INTO ms_file (file_name, file_data, file_content, file_content_vector, file_year) VALUES (%s, %s, %s, %s, %d)", 
+        (file_info[0], file_info[1], file_info[2], file_info[3], file_info[4])
     )
     mysql.connection.commit()
     cur.close()

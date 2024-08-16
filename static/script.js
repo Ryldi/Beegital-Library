@@ -37,3 +37,5 @@ function redirectSQL() {
     // Redirect to the new URL
     window.location.href = newUrl;
 }
+
+document.getElementById('articleYearInput').max = new Date().getFullYear();
