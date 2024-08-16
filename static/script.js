@@ -38,4 +38,6 @@ function redirectSQL() {
     window.location.href = newUrl;
 }
 
-document.getElementById('articleYearInput').max = new Date().getFullYear();
+if(document.getElementById('articleYearInput')){
+    document.getElementById('articleYearInput').max = new Date().getFullYear();
+}
