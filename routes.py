@@ -349,6 +349,9 @@ def download(file_id):
     if result:
         file_name, file_data = result
 
+        # Update document popularity
+        update_popularity(file_id)
+
         # Update document relevance in search log
         search_key = request.args.get('search_key')
         if search_key and search_key in search_log:
@@ -360,6 +363,13 @@ def download(file_id):
         return send_file(io.BytesIO(file_data), as_attachment=True, download_name=file_name, mimetype='application/pdf')
     else:
         abort(404)
+
+def update_popularity(file_id):
+    cur = mysql.connection.cursor()
+    cur.execute("UPDATE ms_file SET file_popularity = file_popularity + 1 WHERE file_id = %s", (file_id,))
+    mysql.connection.commit()
+    print("successfully update popularity")
+    cur.close()
 
 @app.route("/save_log", methods=["GET"])
 def save_log():
