@@ -10,6 +10,9 @@ from text_embedding import text_embed_string as embed
 import time
 import json
 from datetime import datetime
+from PIL import Image
+import fitz  # PyMuPDF
+import base64
 
 app = Flask(__name__)
 
@@ -50,11 +53,7 @@ def update_document_status(search_key, doc_name):
     for key, value in search_log[search_key]["Documents"].items():
         doc_name = doc_name.replace("_", " ")
         value["name"] = value["name"].replace("_", " ")
-        print("2")
-        print(value["name"])
-        print(doc_name)
         if value["name"] == doc_name:
-            print("3")
             search_log[search_key]["Documents"][key]["status"] = "Relevant"
             break
 
@@ -147,13 +146,33 @@ def filter(query):
     return modified_files, message
 
 def extract_short_abstract(file_content):
-    start_index = file_content.lower().find("abstract")
+    start_index = file_content.lower().find("abstract") + 8
+
+    # Skip over any "-", "—", or " " characters after "abstract"
+    while file_content[start_index] in "-— ":
+        start_index += 1    
 
     if start_index >= 0:
         substring = file_content[start_index:start_index+300].strip() + "..."
         return substring
     else:
         print("Abstract word not found.")  
+        return ""
+
+def extract_abstract(file_content):
+    start_index = file_content.lower().find("abstract") + 8
+
+    # Skip over any "-", "—", or " " characters after "abstract"
+    while file_content[start_index] in "-— ":
+        start_index += 1  
+
+    end_index = file_content.lower().find("keywords") if file_content.lower().find("keywords") > 0 else start_index+300
+    end_index = end_index-2 if file_content[end_index-1] == "—" or file_content[end_index-1] == "-" or file_content[end_index-1] == " " else end_index
+
+    if start_index >= 0 and end_index >= 0:
+        abstract = file_content[start_index:end_index].strip()
+        return abstract
+    else:
         return ""
 
 @app.route("/detail/<int:file_id>")
@@ -163,13 +182,31 @@ def detail(file_id):
     file = cur.fetchone()
     cur.close()
 
-    # Update document relevance in search log
-    search_key = request.args.get('search_key')
-    if search_key and search_key in search_log:
-        file_name = file[1].replace('_', ' ')
-        update_document_status(search_key, file[1])
-    
-    return render_template('detailPage.html', file=file)
+    pdf_data = file[4]
+    pdf_stream = io.BytesIO(pdf_data)
+    pdf_document = fitz.open(stream=pdf_stream, filetype="pdf")
+    file_abstract = extract_abstract(file[2])
+    file_title = file[1].replace('_', ' ')
+    file_year = "-" if file[6] == None else file[6]
+
+    # Convert each page to an image
+    file_images = []
+    for page_number in range(len(pdf_document)):
+        page = pdf_document[page_number]
+        pix = page.get_pixmap()
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+
+        img_io = io.BytesIO()
+        img.save(img_io, format="PNG")
+        img_io.seek(0)
+        img_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')  # Encode image to base64
+        file_images.append(img_base64)  # Store the base64-encoded image data
+
+    if 'user' in session:
+        return render_template('detailPage.html', title=file_title, images=file_images, abstract=file_abstract, year=file_year, file=file, user=session['user'])
+    else:
+        return render_template('detailPage.html', title=file_title, images=file_images, abstract=file_abstract, year=file_year, file=file)
+
 
 def fetchFiles():
     cur = mysql.connection.cursor()
@@ -210,7 +247,7 @@ def login():
     
 def auth(nim, password):
     cur = mysql.connection.cursor()
-    cur.execute("SELECT * FROM ms_user WHERE UserNim = %s AND UserPassword = %s", (nim, password))
+    cur.execute("SELECT * FROM ms_user WHERE user_nim = %s AND user_password = %s", (nim, password))
     data = cur.fetchone()
     cur.close()
     return data
@@ -251,7 +288,6 @@ def calcSentenceEmb(query, data, returnVal = False):
     sim_score = sentence_embd(query, datas)
     if returnVal:
         docs = sorted([(data[i][0],sim_score[i]) for i in range(len(data))], key = lambda x: x[1], reverse=True)
-        print(docs)
         return docs
     else:
         return sim_score
