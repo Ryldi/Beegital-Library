@@ -393,6 +393,10 @@ def insertArticle(file_info):
 
 @app.route('/download/<int:file_id>')
 def download(file_id):
+
+    if not session.get('user'):
+        return render_template('loginPage.html')
+
     cur = mysql.connection.cursor()
     cur.execute("SELECT file_name, file_data FROM ms_file WHERE file_id = %s", (file_id,))
     result = cur.fetchone()

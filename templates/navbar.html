@@ -22,7 +22,10 @@
                 </a>
             </div>
             
-            <div class="navbar-right">
+            <div class="navbar-right d-flex align-items-center">
+                {% if 'user' in session %}
+                <div class="greet-message me-4">Hi, {{ session['user'][1] }}</div>
+                {% endif %}
                 <div class="navbar-btn-login">
                     {% if 'user' in session %}
                     <a href="/logout" class="navbar-to-log">Logout</a>
