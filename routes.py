@@ -385,8 +385,7 @@ def processArticle(title, fileI, year):
 def insertArticle(file_info):
     cur = mysql.connection.cursor()
     cur.execute(
-        "INSERT INTO ms_file (file_name, file_data, file_content, file_content_vector, file_year) VALUES (%s, %s, %s, %s, %d)", 
-        (file_info[0], file_info[1], file_info[2], file_info[3], file_info[4])
+        "INSERT INTO ms_file (file_name, file_data, file_content, file_content_vector, file_year) VALUES (%s, %s, %s, %s, %s)", (file_info[0], file_info[1], file_info[2], file_info[3], file_info[4])
     )
     mysql.connection.commit()
     cur.close()
