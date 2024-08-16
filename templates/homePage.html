@@ -30,14 +30,16 @@
 
         <div class="home-article-container">
             <div class="row">
-                {% for i in range(5) %}
+                {% for file in files %}
                 <div class="col-sm-12 col-md-6 col-lg-4 mb-5">
                     <div class="card h-80">
-                        <img class="card-img-top" src="data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22287%22%20height%3D%22180%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20287%20180%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_1901a9af90c%20text%20%7B%20fill%3Argba(255%2C255%2C255%2C.75)%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A14pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_1901a9af90c%22%3E%3Crect%20width%3D%22287%22%20height%3D%22180%22%20fill%3D%22%23777%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22107.634765625%22%20y%3D%2296.52636585235595%22%3E287x180%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E" alt="Card image cap">
+                        <div class="card-image row justify-content-center">
+                            <img src="data:image/png;base64,{{ file[8] }}" class="d-block w-50" alt="PDF page">
+                        </div>
                         <div class="card-body">
-                            <h5 class="card-title">Article {{ i+1 }}</h5>
-                            <p class="card-text">Lorem ipsum dolor sit amet consectetur adipisicing elit. Exercitationem blanditiis molestiae consequuntur magni quo aspernatur soluta impedit, asperiores vitae nostrum optio cum dolore, quos modi quaerat eveniet perferendis natus nam.</p>
-                            <a href="#" class="btn btn-primary">Go somewhere</a>
+                            <p class="card-title">{{ file[1] }}</p>
+                            <p class="card-text text-secondary">{{ file[7] }}</p>
+                            <a href="{{ url_for('detail', file_id=file[0]) }}" class="btn btn-primary">See details →</a>
                         </div>
                     </div>
                 </div>

@@ -34,7 +34,39 @@ def homepage():
         data = request.form.get('search')
         return make_response(redirect(url_for('result_page', search=data)))
     else:
-        return render_template('homePage.html', files=fetchFiles())
+        popular_files = get_popular_files()
+        return render_template('homePage.html', files=popular_files)
+
+def get_popular_files():
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM ms_file ORDER BY file_popularity DESC LIMIT 6")
+    files = cur.fetchall()
+    cur.close()
+
+    modified_files = []
+    for file in files:
+        file_as_list = list(file)
+        file_as_list[1] = file_as_list[1].replace("_", " ")
+        file_as_list.append(extract_short_abstract(file_as_list[2]))
+        file_as_list.append(get_first_page(file_as_list[4]))
+
+        modified_files.append(file_as_list)
+
+    return modified_files
+def get_first_page(document):
+    pdf_stream = io.BytesIO(document)
+    pdf_document = fitz.open(stream=pdf_stream, filetype="pdf")
+
+    page = pdf_document[0]
+    pix = page.get_pixmap()
+    img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+
+    img_io = io.BytesIO()
+    img.save(img_io, format="PNG")
+    img_io.seek(0)
+    img_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')  # Encode image to base64
+    
+    return img_base64
 
 def log_search(query, search_method, files, user_id):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -166,7 +198,10 @@ def extract_abstract(file_content):
     while file_content[start_index] in "-— ":
         start_index += 1  
 
-    end_index = file_content.lower().find("keywords") if file_content.lower().find("keywords") > 0 else start_index+300
+    end_index = file_content.lower().find("keywords") if file_content.lower().find("keywords") > 0 else file_content.lower().find("index terms")
+
+    end_index = start_index+400 if end_index == -1 else end_index
+    
     end_index = end_index-2 if file_content[end_index-1] == "—" or file_content[end_index-1] == "-" or file_content[end_index-1] == " " else end_index
 
     if start_index >= 0 and end_index >= 0:
