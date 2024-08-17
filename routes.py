@@ -276,23 +276,15 @@ def fetchFiles():
     cur.close()
     return modified_files
 
-def authed(user):
-    response = make_response(redirect("/"))
-    session['user'] = user
-    return response
-
-
 @app.route("/login", methods=["POST", "GET"])
 def login():
     if(request.method == "POST"):
         data = request.form
-        user = auth(data["usernim"], data["password"])
-        if(user):
-            return authed(user)
-        else:
-            return "<p>Login Failed</p>"
+        return auth(data["usernim"], data["password"])
         
     elif(request.method == "GET"):
+        if session.get('user'):
+            return redirect('/')
         return render_template('loginPage.html')
     else:
         return "<p>Login</p>"
@@ -300,15 +292,23 @@ def login():
 def auth(nim, password):
     cur = mysql.connection.cursor()
     cur.execute("SELECT * FROM ms_user WHERE user_nim = %s AND user_password = %s", (nim, password))
-    data = cur.fetchone()
+    user = cur.fetchone()
     cur.close()
-    return data
+
+    if user:
+        session['user'] = user
+        return redirect("/")
+    else:
+        flash('The username or password you entered is incorrect, please double-check your credentials and try again!', 'danger')
+        return render_template('loginPage.html')
 
 @app.route("/logout")
 def logout():
-    response = make_response(redirect("/"))
-    session.pop('user', None)
-    return response
+    if 'user' in session:
+        session.pop('user', None)
+        return redirect("/")
+    else:
+        return redirect("/")
 
 # using bm25
 def calcbm25(query,data, returnVal = False):
