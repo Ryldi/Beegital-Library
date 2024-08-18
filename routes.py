@@ -32,7 +32,7 @@ search_log = {}
 def homepage():
     if(request.method == "POST"):
         data = request.form.get('search')
-        return make_response(redirect(url_for('result_page', search=data)))
+        return make_response(redirect(url_for('sql', search=data)))
     else:
         popular_files = get_popular_files()
         return render_template('homePage.html', files=popular_files)
@@ -90,25 +90,41 @@ def update_document_status(search_key, doc_name):
             break
 
 @app.route("/result/sql", methods=["POST", "GET"])
-def result_page():
+def sql():
     search = request.args.get('search')
+    page = int(request.args.get('page', 1))  # Get the page number from the query string, default to 1
+    per_page = 5  # Number of files per page
+
     if request.method == "POST":
         search = request.form.get('search')
 
     user_id = session['user'][0] if 'user' in session else 'Anonymous'
     files, message = filter(search)
-    
+
+    # Paginate files
+    total_files = len(files)
+    start_index = (page - 1) * per_page
+    end_index = start_index + per_page
+    paginated_files = files[start_index:end_index]
+
+    total_pages = (total_files + per_page - 1) // per_page  # Calculate total pages
+
     # Log the search
-    search_key = log_search(search, "SQL", files, user_id)
+    search_key = log_search(search, "SQL", paginated_files, user_id)
+
+    route_name = "sql"  # Identify the route name
 
     if 'user' in session:
-        return render_template('resultPage.html', files=files, user=session['user'], search=search, message=message, search_key=search_key)
+        return render_template('resultPage.html', files=paginated_files, user=session['user'], search=search, message=message, search_key=search_key, page=page, total_pages=total_pages, route_name=route_name)
     else:
-        return render_template('resultPage.html', files=files, search=search, message=message, search_key=search_key)
+        return render_template('resultPage.html', files=paginated_files, search=search, message=message, search_key=search_key, page=page, total_pages=total_pages, route_name=route_name)
+
 
 @app.route("/result/irs", methods=["POST", "GET"])
 def irs():
     start_time = time.time()
+    page = int(request.args.get('page', 1))  # page number from the query string, default to 1
+    per_page = 5  # Number of files per page
 
     cur = mysql.connection.cursor()
     cur.execute("SELECT file_id, file_content FROM ms_file")
@@ -137,6 +153,13 @@ def irs():
     end_time = time.time()
     time_taken = end_time - start_time
 
+    total_files = len(ranked_files)
+    start_index = (page - 1) * per_page
+    end_index = start_index + per_page
+    paginated_files = ranked_files[start_index:end_index]
+
+    total_pages = (total_files + per_page - 1) // per_page  # Calculate total pages
+
     file_message = "Found {:d} files".format(len(ranked_files))
     time_message = "in {:.4f} seconds using irs".format(time_taken)
     message = file_message + " " + time_message
@@ -144,12 +167,15 @@ def irs():
     user_id = session['user'][0] if 'user' in session else 'Anonymous'
     
     # Log the search
-    search_key = log_search(search, "IRS", ranked_files, user_id)
+    search_key = log_search(search, "IRS", paginated_files, user_id)
+
+    route_name = "irs"  # Identify the route
 
     if 'user' in session:
-        return render_template('resultPage.html', files=ranked_files, user=session['user'], search=search, message=message, search_key=search_key)
+        return render_template('resultPage.html', files=paginated_files, user=session['user'], search=search, message=message, search_key=search_key, page=page, total_pages=total_pages, route_name=route_name)
     else:
-        return render_template('resultPage.html', files=ranked_files, search=search, message=message, search_key=search_key)
+        return render_template('resultPage.html', files=paginated_files, search=search, message=message, search_key=search_key, page=page, total_pages=total_pages, route_name=route_name)
+
         
 def filter(query):
     start_time = time.time()
@@ -233,6 +259,11 @@ def detail(file_id):
     cur.execute("SELECT * FROM ms_file WHERE file_id = %s", (file_id,))
     file = cur.fetchone()
     cur.close()
+
+    search_key = request.args.get('search_key')
+    
+    if search_key and search_key in search_log:
+        update_document_status(search_key, file[1])
 
     pdf_data = file[4]
     pdf_stream = io.BytesIO(pdf_data)
