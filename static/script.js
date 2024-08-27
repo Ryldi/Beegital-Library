@@ -6,10 +6,12 @@ $(document).ready(function() {
     }
 
     $('#flash-modal .btn-close').on('click', function () {
+        $(this).remove();
         flashModal.hide();
     });
 
     $('#home-button').on('click', function () {
+        $(this).remove();
         window.location.href = '/';
     });
 });

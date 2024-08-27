@@ -23,30 +23,23 @@
                 <div class="modal-dialog" role="document">
                     <div class="modal-content">
                         <div class="modal-header">
-                        {% for category, message in messages %}
-                            {% if category == 'danger' %}
+                        {% if messages[0][0] == 'danger' %}
                             <h5 class="modal-title text-danger">Error!</h5>
-                            {% endif %}
-                            {% if category == 'success' %}
+                        {% elif messages[0][0] == 'success' %}
                             <h5 class="modal-title text-success">Success!</h5>
-                            {% endif %}
-                        {% endfor %}
+                        {% endif %}
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
                             <div>
-                                {% for category, message in messages %}
-                                    <div class="flash-{{ category }}">{{ message }}</div>
-                                {% endfor %}
+                                <div class="flash-message">{{ messages[0][1] }}</div>
                             </div>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            {% for category, message in messages %}
-                            {% if category == 'success' %}
-                            <button type="button" class="btn btn-primary" id="home-button" data-bs-dismiss="modal">Back to Home</button>
+                            {% if messages[0][0] == 'success' %}
+                                <button type="button" class="btn btn-primary" id="home-button" data-bs-dismiss="modal">Back to Home</button>
                             {% endif %}
-                            {% endfor %}
                         </div>
                     </div>
                 </div>

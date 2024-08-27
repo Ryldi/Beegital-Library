@@ -209,7 +209,7 @@ def extract_short_abstract(file_content):
     # Skip over any unwanted characters after "abstract"
     while file_content[start_index] in "-— :#$@!%^&*()[]{};:,./<>?\\|`~=":
         start_index += 1 
-
+    
     if start_index >= 0:
         substring = file_content[start_index:start_index+300].strip() + "..."
         return substring
@@ -226,7 +226,7 @@ def extract_abstract(file_content):
     while file_content[start_index] in "-— :#$@!%^&*()[]{};:,./<>?\\|`~=":
         start_index += 1  
 
-    keywords_index = file_content_lower.find("keywords", start_index)
+    keywords_index = (file_content_lower.find("keywords", start_index) if (file_content_lower.find("keywords", start_index) != -1) else file_content_lower.find("key word", start_index))
     index_terms_index = file_content_lower.find("index terms", start_index)
     introduction_index = file_content_lower.find("introduction", start_index)
 
@@ -392,6 +392,7 @@ def addArticle():
         return ValidateArticleInput(title, fileI, year)
 
     elif(request.method == "GET"):
+        clear_flash_messages()
         return render_template('addArticlePage.html')
 
 
@@ -414,13 +415,31 @@ def processArticle(title, fileI, year):
     return (file_name, file_data, file_content, file_content_vector, year)
 
 def insertArticle(file_info):
-    cur = mysql.connection.cursor()
-    cur.execute(
-        "INSERT INTO ms_file (file_name, file_data, file_content, file_content_vector, file_year) VALUES (%s, %s, %s, %s, %s)", (file_info[0], file_info[1], file_info[2], file_info[3], file_info[4])
-    )
-    mysql.connection.commit()
-    cur.close()
-    return None
+    if file_info[0] == "" or file_info[1] == None or file_info[2] == "" or file_info[3] == "" or file_info[4] == "":
+        flash('There is some problem with your files, we cannot read the content of your file. Please try again!', 'danger')
+        return render_template('addArticlePage.html')
+
+    else:
+        cur = mysql.connection.cursor()
+
+        cur.execute("SELECT * FROM ms_file WHERE file_content = %s", (file_info[2],))
+        duplicate = cur.fetchall()
+
+        if duplicate:
+            flash('Article already exists!', 'danger')
+            return render_template('addArticlePage.html')
+
+        else:
+            cur.execute(
+                "INSERT INTO ms_file (file_name, file_data, file_content, file_content_vector, file_year) VALUES (%s, %s, %s, %s, %s)", (file_info[0], file_info[1], file_info[2], file_info[3], file_info[4])
+            )
+            mysql.connection.commit()
+            cur.close()
+            return None
+
+def clear_flash_messages():
+    session.pop('_flashes', None)  # Remove flash messages from the session
+    return "", 204  # No content to return
 
 @app.route('/download/<int:file_id>')
 def download(file_id):
