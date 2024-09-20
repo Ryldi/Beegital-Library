@@ -30,6 +30,9 @@ search_log = {}
 
 @app.route("/", methods=["POST", "GET"])
 def homepage():
+    if('irs_results' or 'sql_results' in session):
+        save_log()
+
     if(request.method == "POST"):
         data = request.form.get('search')
         return make_response(redirect(url_for('sql', search=data)))
@@ -68,13 +71,14 @@ def get_first_page(document):
     
     return img_base64
 
-def log_search(query, search_method, files, user_id):
+def log_search(query, search_method, files, user_id, page_number):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     search_key = f"{user_id}_{timestamp}"
 
     search_log[search_key] = {
         "UserId": user_id,
         "Query": query,
+        "PageNumber": page_number,
         "SearchMethod": search_method,
         "Documents": {f"Document_{index+1}": {"name": file[1], "status": "Irrelevant"} for index, file in enumerate(files)}
     }
@@ -91,15 +95,29 @@ def update_document_status(search_key, doc_name):
 
 @app.route("/result/sql", methods=["POST", "GET"])
 def sql():
+    if('irs_results' or 'sql_results' in session):
+        save_log()
+
     search = request.args.get('search')
     page = int(request.args.get('page', 1))  # Get the page number from the query string, default to 1
     per_page = 5  # Number of files per page
 
     if request.method == "POST":
         search = request.form.get('search')
+        session.pop('sql_results', None)
 
-    user_id = session['user'][0] if 'user' in session else 'Anonymous'
-    files, message = filter(search)
+    # Check if search results are already cached in session
+    if 'sql_results' in session and session.get('search_query_sql') == search:
+        files = session['sql_results']
+        message = session['sql_message']
+    else:
+        user_id = session['user'][0] if 'user' in session else 'Anonymous'
+        files, message = filter(search)  # Call the filter function to get the search results
+        
+        # Cache the search results and query
+        session['sql_results'] = files
+        session['search_query_sql'] = search
+        session['sql_message'] = message
 
     # Paginate files
     total_files = len(files)
@@ -110,7 +128,7 @@ def sql():
     total_pages = (total_files + per_page - 1) // per_page  # Calculate total pages
 
     # Log the search
-    search_key = log_search(search, "SQL", paginated_files, user_id)
+    search_key = log_search(search, "SQL", paginated_files, session['user'][0] if 'user' in session else 'Anonymous', page)
 
     route_name = "sql"  # Identify the route name
 
@@ -120,38 +138,55 @@ def sql():
         return render_template('resultPage.html', files=paginated_files, search=search, message=message, search_key=search_key, page=page, total_pages=total_pages, route_name=route_name)
 
 
+
 @app.route("/result/irs", methods=["POST", "GET"])
 def irs():
+    if('irs_results' or 'sql_results' in session):
+        save_log()
+
     start_time = time.time()
     page = int(request.args.get('page', 1))  # page number from the query string, default to 1
     per_page = 5  # Number of files per page
-
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT file_id, file_content FROM ms_file")
-    data = cur.fetchall()
-    cur.close()
+    time_taken = 0
 
     search = request.args.get('search')
     if request.method == "POST":
         search = request.form.get('search')
+        # Clear previous search results from session if a new search is performed
+        session.pop('irs_results', None)
 
-    docs = calcTotal(search, data)
-    
-    ranked_files = []
-    for doc_id, score in docs:
+    # If search results exist in session, use them
+    if 'irs_results' in session and session.get('search_query') == search:
+        ranked_files = session['irs_results']
+        time_taken = session['search_time']
+    else:
         cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM ms_file WHERE file_id = %s", (doc_id,))
-        file = cur.fetchone()
+        cur.execute("SELECT file_id, file_content FROM ms_file")
+        data = cur.fetchall()
         cur.close()
-        if file:
-            file_id = file[0]
-            original_filename = file[1]
-            modified_filename = original_filename.replace('_', ' ')
-            short_abstract = extract_short_abstract(file[2])
-            ranked_files.append((file_id, modified_filename, short_abstract)) 
 
-    end_time = time.time()
-    time_taken = end_time - start_time
+        # Perform search and calculate scores
+        docs = calcTotal(search, data)
+        ranked_files = []
+
+        for doc_id, score in docs:
+            cur = mysql.connection.cursor()
+            cur.execute("SELECT * FROM ms_file WHERE file_id = %s", (doc_id,))
+            file = cur.fetchone()
+            cur.close()
+            if file:
+                file_id = file[0]
+                original_filename = file[1]
+                modified_filename = original_filename.replace('_', ' ')
+                short_abstract = extract_short_abstract(file[2])
+                ranked_files.append((file_id, modified_filename, short_abstract))
+
+        # Store results in session for future pagination
+        end_time = time.time()
+        time_taken = end_time - start_time
+        session['irs_results'] = ranked_files
+        session['search_query'] = search
+        session['search_time'] = time_taken
 
     total_files = len(ranked_files)
     start_index = (page - 1) * per_page
@@ -167,7 +202,7 @@ def irs():
     user_id = session['user'][0] if 'user' in session else 'Anonymous'
     
     # Log the search
-    search_key = log_search(search, "IRS", paginated_files, user_id)
+    search_key = log_search(search, "IRS", paginated_files, user_id, page)
 
     route_name = "irs"  # Identify the route
 
@@ -335,6 +370,9 @@ def auth(nim, password):
 
 @app.route("/logout")
 def logout():
+    if('irs_results' or 'sql_results' in session):
+        save_log()
+
     if 'user' in session:
         session.pop('user', None)
         return redirect("/")
@@ -477,11 +515,9 @@ def update_popularity(file_id):
     print("successfully update popularity")
     cur.close()
 
-@app.route("/save_log", methods=["GET"])
 def save_log():
     with open('search_log.json', 'w') as f:
         json.dump(search_log, f)
-    return "<p>Log saved successfully</p>"
 
 if __name__ == "__main__":
     app.run(debug=True)
