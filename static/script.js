@@ -22,7 +22,7 @@ function redirectIRS() {
     const searchQuery = searchParams.get('search');
 
     // Construct the new URL
-    const newUrl = `http://127.0.0.1:5000/result/irs?search=${encodeURIComponent(searchQuery)}`;
+    const newUrl = `/result/irs?search=${encodeURIComponent(searchQuery)}`;
 
     // Redirect to the new URL
     window.location.href = newUrl;

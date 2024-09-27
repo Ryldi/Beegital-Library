@@ -215,8 +215,12 @@ def irs():
 def filter(query):
     start_time = time.time()
     
+    print(query)
+
     cur = mysql.connection.cursor()
-    cur.execute(f"SELECT * FROM ms_file WHERE file_content LIKE '%{query}%'") #ubah file_name jadi file_content
+    query_title = query.replace(' ', '_')
+
+    cur.execute(f"SELECT * FROM ms_file WHERE file_content LIKE '%{query}%' OR file_name LIKE '%{query_title}%'") #ubah file_name jadi file_content
     files = cur.fetchall()
 
     modified_files = [] #cleaning file_name with _ and extract abstract
